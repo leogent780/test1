@@ -10,10 +10,23 @@ def upload_file(file_path: str) -> str:
     return url
 
 
+def get_clip_duration(clip_path: str) -> str:
+    import subprocess, json
+    result = subprocess.run([
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "json", clip_path
+    ], capture_output=True, text=True)
+    info = json.loads(result.stdout)
+    secs = float(info["format"]["duration"])
+    # Seedance 2.0 지원 범위: 4~15초, 최소 4초 보장
+    return str(max(4, min(15, round(secs))))
+
+
 def submit_video(clip_path: str, product_image_path: str, prompt: str) -> str:
     """클립 + 제품 이미지 + 프롬프트를 fal.ai에 제출하고 request_id 반환"""
     clip_url = upload_file(clip_path)
     image_url = upload_file(product_image_path)
+    duration = get_clip_duration(clip_path)
 
     full_prompt = f"Use @Video1 as the reference video. Use @Image1 as the replacement product. {prompt}"
 
@@ -25,7 +38,7 @@ def submit_video(clip_path: str, product_image_path: str, prompt: str) -> str:
             "image_urls": [image_url],
             "resolution": "480p",
             "aspect_ratio": "9:16",
-            "duration": "4",
+            "duration": duration,
         },
     )
 
