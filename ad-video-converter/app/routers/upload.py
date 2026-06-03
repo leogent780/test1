@@ -1,4 +1,5 @@
 import uuid
+import re
 import shutil
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -10,6 +11,14 @@ from app.services.job_store import create_job, update_job, get_job
 router = APIRouter(prefix="/api", tags=["upload"])
 
 
+def _safe_filename(filename: str) -> str:
+    """한글/특수문자를 제거하고 영숫자+확장자만 남김"""
+    ext = Path(filename).suffix
+    name = re.sub(r'[^\w]', '_', Path(filename).stem, flags=re.ASCII)
+    name = re.sub(r'_+', '_', name).strip('_') or 'file'
+    return f"{name}{ext}"
+
+
 @router.post("/upload")
 async def upload_files(
     reference_video: UploadFile = File(...),
@@ -18,9 +27,9 @@ async def upload_files(
 ):
     job_id = str(uuid.uuid4())[:8]
 
-    # 파일 저장
-    ref_path = DIRS["reference"] / f"{job_id}_{reference_video.filename}"
-    prod_path = DIRS["product"] / f"{job_id}_{product_image.filename}"
+    # 파일 저장 (한글 파일명 안전하게 변환)
+    ref_path = DIRS["reference"] / f"{job_id}_{_safe_filename(reference_video.filename)}"
+    prod_path = DIRS["product"] / f"{job_id}_{_safe_filename(product_image.filename)}"
 
     for upload, path in [(reference_video, ref_path), (product_image, prod_path)]:
         with open(path, "wb") as f:
