@@ -93,3 +93,27 @@ async def update_prompts(job_id: str, prompts: dict[str, str]):
 
     update_job(job_id, {"clips": clips, "status": "ready_to_submit"})
     return {"updated": len(prompts)}
+
+
+@router.post("/job/{job_id}/generate")
+async def generate_videos(job_id: str):
+    """fal.ai Seedance 2.0으로 모든 클립 영상 생성"""
+    from app.services.fal_client import generate_videos_for_clips
+    import traceback
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    update_job(job_id, {"status": "generating"})
+
+    try:
+        clips = job.get("clips", [])
+        product_image_path = job["product_image"]
+        clips = generate_videos_for_clips(clips, product_image_path)
+        update_job(job_id, {"clips": clips, "status": "completed"})
+    except Exception as e:
+        update_job(job_id, {"status": "error", "error": traceback.format_exc()})
+        raise HTTPException(status_code=500, detail=f"생성 오류: {str(e)}")
+
+    return {"status": "completed", "clip_count": len(clips)}

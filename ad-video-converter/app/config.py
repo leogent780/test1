@@ -20,6 +20,7 @@ for d in DIRS.values():
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")
+FAL_API_KEY = os.getenv("FAL_API_KEY", "")
 
 SCENE_THRESHOLD = 27.0  # 장면 전환 감도 (낮을수록 민감)
 MIN_CLIP_DURATION = 1.0  # 최소 클립 길이 (초)
