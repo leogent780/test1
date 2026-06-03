@@ -25,6 +25,7 @@ async def review_clips(request: Request, job_id: str):
 
 @router.get("/job/{job_id}/prompts", response_class=HTMLResponse)
 async def review_prompts(request: Request, job_id: str):
+    import traceback
     job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -32,8 +33,11 @@ async def review_prompts(request: Request, job_id: str):
     # 프롬프트가 아직 없으면 생성
     clips = job.get("clips", [])
     if clips and "prompt" not in clips[0]:
-        clips = generate_prompts_for_clips(clips, job["product_description"])
-        update_job(job_id, {"clips": clips, "status": "review_prompts"})
+        try:
+            clips = generate_prompts_for_clips(clips, job["product_description"])
+            update_job(job_id, {"clips": clips, "status": "review_prompts"})
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"프롬프트 생성 오류: {traceback.format_exc()}")
 
     return templates.TemplateResponse("review_prompts.html", {"request": request, "job": job})
 
