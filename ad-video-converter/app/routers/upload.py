@@ -167,10 +167,15 @@ async def poll_results(job_id: str):
 @router.get("/higgsfield/debug")
 async def higgsfield_debug():
     """Higgsfield 토큰 & create-media 응답 확인용 디버그 엔드포인트"""
+    import os
     from app.config import HIGGSFIELD_TOKEN
     BASE = "https://fnf.higgsfield.ai"
     headers = {"Authorization": f"Bearer {HIGGSFIELD_TOKEN}", "Accept": "application/json"}
-    results = {}
+    results = {
+        "token_preview": HIGGSFIELD_TOKEN[:30] + "..." if HIGGSFIELD_TOKEN else "EMPTY",
+        "token_length": len(HIGGSFIELD_TOKEN),
+        "env_direct": (os.getenv("HIGGSFIELD_TOKEN", "")[:30] + "...") if os.getenv("HIGGSFIELD_TOKEN") else "EMPTY",
+    }
     try:
         with httpx.Client(timeout=15) as client:
             r = client.post(f"{BASE}/video", headers=headers)
