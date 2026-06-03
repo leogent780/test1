@@ -16,10 +16,13 @@ def generate_video(clip_path: str, product_image_path: str, prompt: str) -> str:
     clip_url = upload_file(clip_path)
     image_url = upload_file(product_image_path)
 
+    # @Video1, @Image1 참조를 프롬프트에 추가해야 fal.ai가 인식함
+    full_prompt = f"Use @Video1 as the reference video. Use @Image1 as the replacement product. {prompt}"
+
     result = fal_client.subscribe(
         "bytedance/seedance-2.0/reference-to-video",
         arguments={
-            "prompt": prompt,
+            "prompt": full_prompt,
             "video_urls": [clip_url],
             "image_urls": [image_url],
             "resolution": "720p",
