@@ -37,9 +37,6 @@ async def upload_files(
     # 장면 감지 & 클립 분할
     try:
         scenes = detect_scenes(str(ref_path))
-        if not scenes:
-            raise HTTPException(status_code=400, detail="장면 전환을 감지할 수 없습니다.")
-
         clips = split_clips(str(ref_path), scenes, job_id)
         update_job(job_id, {"clips": clips, "status": "review_clips"})
 

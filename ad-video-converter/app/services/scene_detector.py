@@ -5,8 +5,18 @@ from scenedetect.detectors import ContentDetector
 from app.config import DIRS, SCENE_THRESHOLD, MIN_CLIP_DURATION
 
 
+def _get_video_duration(video_path: str) -> float:
+    import subprocess, json
+    result = subprocess.run([
+        "ffprobe", "-v", "quiet", "-print_format", "json",
+        "-show_format", video_path
+    ], capture_output=True, text=True)
+    info = json.loads(result.stdout)
+    return float(info["format"]["duration"])
+
+
 def detect_scenes(video_path: str) -> list[dict]:
-    """장면 전환 감지 후 타임스탬프 목록 반환"""
+    """장면 전환 감지 후 타임스탬프 목록 반환. 감지 안 되면 전체를 1개 클립으로 반환."""
     video = open_video(video_path)
     manager = SceneManager()
     manager.add_detector(ContentDetector(threshold=SCENE_THRESHOLD))
@@ -25,6 +35,11 @@ def detect_scenes(video_path: str) -> list[dict]:
             "end": round(end.get_seconds(), 3),
             "duration": round(duration, 3),
         })
+
+    # 장면 전환이 없으면 영상 전체를 1개 클립으로 처리
+    if not scenes:
+        total = _get_video_duration(video_path)
+        scenes = [{"index": 0, "start": 0.0, "end": round(total, 3), "duration": round(total, 3)}]
 
     return scenes
 
