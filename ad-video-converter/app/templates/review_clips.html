@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>클립 검토</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #f0f0f0; padding: 40px 24px; }
+    .header { max-width: 900px; margin: 0 auto 32px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    p.sub { color: #888; font-size: 14px; }
+    .grid { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .clip-card {
+      background: #1a1a1a; border-radius: 10px; overflow: hidden;
+      border: 2px solid #333; cursor: pointer; transition: border-color 0.2s;
+    }
+    .clip-card.selected { border-color: #6366f1; }
+    .clip-card.deselected { opacity: 0.4; border-color: #333; }
+    .clip-card img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .clip-info { padding: 10px 12px; }
+    .clip-info .idx { font-size: 12px; color: #666; }
+    .clip-info .dur { font-size: 13px; color: #ccc; margin-top: 2px; }
+    .footer { max-width: 900px; margin: 32px auto 0; display: flex; align-items: center; gap: 16px; }
+    .count { color: #888; font-size: 14px; }
+    button {
+      padding: 12px 28px; background: #6366f1; color: white; border: none;
+      border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    button:hover { background: #5254cc; }
+    button.secondary { background: #2a2a2a; color: #aaa; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Step 2 — 클립 검토</h1>
+    <p class="sub">유지할 클립을 선택하세요. 클릭으로 포함/제외를 전환합니다.</p>
+  </div>
+
+  <div class="grid" id="clipGrid">
+    {% for clip in job.clips %}
+    <div class="clip-card selected" data-index="{{ clip.index }}" onclick="toggleClip(this)">
+      <img src="/uploads/clips/{{ job.job_id }}/{{ clip.thumb_filename }}" alt="clip {{ clip.index }}">
+      <div class="clip-info">
+        <div class="idx">클립 #{{ loop.index }}</div>
+        <div class="dur">{{ "%.1f"|format(clip.start) }}s – {{ "%.1f"|format(clip.end) }}s ({{ "%.1f"|format(clip.duration) }}s)</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="footer">
+    <span class="count" id="countLabel"></span>
+    <button onclick="confirmClips()">프롬프트 생성하기 →</button>
+  </div>
+
+  <script>
+    const jobId = "{{ job.job_id }}";
+
+    function toggleClip(card) {
+      card.classList.toggle('selected');
+      card.classList.toggle('deselected');
+      updateCount();
+    }
+
+    function updateCount() {
+      const selected = document.querySelectorAll('.clip-card.selected').length;
+      document.getElementById('countLabel').textContent = `${selected}개 클립 선택됨`;
+    }
+
+    async function confirmClips() {
+      const selected = [...document.querySelectorAll('.clip-card.selected')]
+        .map(c => parseInt(c.dataset.index));
+
+      if (selected.length === 0) {
+        alert('최소 1개 이상의 클립을 선택해주세요.');
+        return;
+      }
+
+      const res = await fetch(`/api/job/${jobId}/confirm-clips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selected),
+      });
+
+      if (res.ok) {
+        window.location.href = `/job/${jobId}/prompts`;
+      }
+    }
+
+    updateCount();
+  </script>
+</body>
+</html>
