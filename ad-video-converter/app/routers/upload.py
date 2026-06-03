@@ -175,25 +175,22 @@ async def higgsfield_debug():
         "token_preview": HIGGSFIELD_TOKEN[:30] + "..." if HIGGSFIELD_TOKEN else "EMPTY",
         "token_length": len(HIGGSFIELD_TOKEN),
     }
-    # POST /video 시도
-    try:
-        with httpx.Client(timeout=15) as client:
-            r = client.post(f"{BASE}/video", headers=headers)
-            results["post_video_status"] = r.status_code
-            results["post_video_body"] = r.text
-    except Exception as e:
-        results["post_video_error"] = str(e)
-    # 클라이언트 생성 UUID로 upload 엔드포인트 시도
-    test_uuid = str(_uuid.uuid4())
-    try:
-        with httpx.Client(timeout=15) as client:
-            r = client.post(
-                f"{BASE}/video/{test_uuid}/upload",
-                headers=headers,
-                json={"force_nsfw_check": True, "force_ip_check": True},
-            )
-            results["upload_status"] = r.status_code
-            results["upload_body"] = r.text
-    except Exception as e:
-        results["upload_error"] = str(e)
+    # 여러 후보 엔드포인트 테스트
+    candidates = [
+        ("POST", "/video"),
+        ("POST", "/videos"),
+        ("POST", "/media"),
+        ("POST", "/video/create"),
+        ("POST", "/api/video"),
+        ("POST", "/api/media"),
+        ("GET",  "/video"),
+        ("GET",  "/user"),
+    ]
+    with httpx.Client(timeout=10) as client:
+        for method, path in candidates:
+            try:
+                req = client.request(method, f"{BASE}{path}", headers=headers, json={})
+                results[f"{method} {path}"] = f"{req.status_code} | {req.text[:120]}"
+            except Exception as e:
+                results[f"{method} {path}"] = f"ERR: {e}"
     return results
