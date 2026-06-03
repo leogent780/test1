@@ -18,6 +18,7 @@ for d in DIRS.values():
     d.mkdir(parents=True, exist_ok=True)
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")
 
 SCENE_THRESHOLD = 27.0  # 장면 전환 감도 (낮을수록 민감)

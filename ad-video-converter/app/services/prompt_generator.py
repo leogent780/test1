@@ -1,7 +1,6 @@
 import base64
-import anthropic
-from pathlib import Path
-from app.config import ANTHROPIC_API_KEY
+from openai import OpenAI
+from app.config import OPENAI_API_KEY
 
 
 def _encode_image(image_path: str) -> str:
@@ -11,48 +10,48 @@ def _encode_image(image_path: str) -> str:
 
 def generate_prompt(thumb_path: str, product_description: str) -> str:
     """클립 대표 프레임 + 제품 설명으로 Higgsfield용 프롬프트 생성"""
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
     thumb_b64 = _encode_image(thumb_path)
 
-    system = (
-        "You are an expert at writing video-to-video prompts for Higgsfield AI. "
-        "Your goal is to describe how to replace a product in a scene while keeping "
-        "everything else identical: camera angle, lighting, background, hand positions, "
-        "actions, and overall composition."
-    )
-
-    user_text = (
-        f"This is a frame from an advertisement video. "
-        f"I want to replace the product in this scene with: {product_description}\n\n"
-        "Write a concise Higgsfield video-to-video prompt that:\n"
-        "1. Keeps the scene, background, lighting, and camera angle exactly the same\n"
-        "2. Replaces only the product with the described product\n"
-        "3. Maintains natural hand/body positions and movements\n\n"
-        "Return only the prompt text, nothing else."
-    )
-
-    message = client.messages.create(
-        model="claude-opus-4-8",
+    response = client.chat.completions.create(
+        model="gpt-4o",
         max_tokens=300,
-        system=system,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/jpeg",
-                        "data": thumb_b64,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert at writing video-to-video prompts for Higgsfield AI. "
+                    "Your goal is to describe how to replace a product in a scene while keeping "
+                    "everything else identical: camera angle, lighting, background, hand positions, "
+                    "actions, and overall composition."
+                ),
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{thumb_b64}"},
                     },
-                },
-                {"type": "text", "text": user_text},
-            ],
-        }],
+                    {
+                        "type": "text",
+                        "text": (
+                            f"This is a frame from an advertisement video. "
+                            f"I want to replace the product in this scene with: {product_description}\n\n"
+                            "Write a concise Higgsfield video-to-video prompt that:\n"
+                            "1. Keeps the scene, background, lighting, and camera angle exactly the same\n"
+                            "2. Replaces only the product with the described product\n"
+                            "3. Maintains natural hand/body positions and movements\n\n"
+                            "Return only the prompt text, nothing else."
+                        ),
+                    },
+                ],
+            },
+        ],
     )
 
-    return message.content[0].text.strip()
+    return response.choices[0].message.content.strip()
 
 
 def generate_prompts_for_clips(clips: list[dict], product_description: str) -> list[dict]:
