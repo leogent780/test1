@@ -12,136 +12,45 @@
     p.sub { color: #888; font-size: 14px; }
     .notice { max-width: 800px; margin: 0 auto 28px; border-radius: 8px; padding: 14px 16px; font-size: 13px; }
     .notice.ready { background: #1a2a1a; border: 1px solid #3b6b3b; color: #90cc90; }
-    .notice.generating { background: #1a1a2e; border: 1px solid #3b3b6b; color: #a0a0cc; }
-    .notice.error { background: #2e1a1a; border: 1px solid #6b3b3b; color: #cc9090; }
     .cards { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
     .card { background: #1a1a1a; border-radius: 10px; padding: 16px 20px; }
     .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .card-header .label { font-size: 13px; color: #888; }
     .card-header .time { font-size: 12px; color: #555; }
-    .badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; }
-    .badge.done { background: #1a3a1a; color: #6fcf6f; }
-    .badge.pending { background: #2a2a2a; color: #888; }
-    .badge.generating { background: #1a1a3a; color: #8888ff; }
-    .badge.failed { background: #3a1a1a; color: #ff8888; }
     .prompt-text { font-size: 13px; color: #ccc; background: #111; border-radius: 6px; padding: 10px 12px; line-height: 1.5; margin-bottom: 12px; }
     .card-footer { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
     .btn { padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; text-decoration: none; border: none; }
     .btn-gray { background: #2a2a2a; color: #aaa; border: 1px solid #444; }
     .btn-purple { background: #444; color: white; }
-    .btn-green { background: #6366f1; color: white; }
-    .generate-btn { max-width: 800px; margin: 28px auto 0; }
-    button.big { padding: 14px 28px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
-    button.big:hover { background: #5254cc; }
-    button.big:disabled { background: #444; cursor: not-allowed; }
-    .progress { max-width: 800px; margin: 16px auto 0; font-size: 13px; color: #888; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Step 4 — 영상 생성</h1>
-    <p class="sub">fal.ai Seedance 2.0으로 각 클립을 자동 생성합니다.</p>
+    <h1>Step 4 — 클립 & 프롬프트 확인</h1>
+    <p class="sub">클립을 다운로드하고 프롬프트를 복사해서 Higgsfield에 업로드하세요.</p>
   </div>
 
-  <div class="notice {% if job.status == 'completed' %}ready{% else %}ready{% endif %}" id="statusNotice">
-    {% if job.status == 'completed' %}
-    ✅ 영상 생성 완료! 아래에서 결과 영상을 확인하세요.
-    {% elif job.status == 'generating' %}
-    ⏳ 생성 중입니다. 잠시 기다려주세요...
-    {% else %}
-    ✅ 프롬프트 확정 완료. 아래 버튼으로 영상 생성을 시작하세요.
-    {% endif %}
+  <div class="notice ready">
+    ✅ 프롬프트 확정 완료. 각 클립을 다운로드하고 Higgsfield에서 생성하세요.
   </div>
 
-  <div class="cards" id="cards">
+  <div class="cards">
     {% for clip in job.clips %}
-    <div class="card" id="card_{{ clip.index }}">
+    <div class="card">
       <div class="card-header">
         <span class="label">클립 #{{ loop.index }}</span>
         <span class="time">{{ "%.1f"|format(clip.start) }}s – {{ "%.1f"|format(clip.end) }}s</span>
-        <span class="badge {% if clip.output_url is defined %}done{% else %}pending{% endif %}" id="badge_{{ clip.index }}">
-          {% if clip.output_url is defined %}완료{% else %}대기중{% endif %}
-        </span>
       </div>
       <div class="prompt-text">{{ clip.prompt }}</div>
-      <div class="card-footer" id="footer_{{ clip.index }}">
-        <a class="btn btn-gray" href="/uploads/clips/{{ job.job_id }}/{{ clip.clip_filename }}" download>원본 클립</a>
+      <div class="card-footer">
+        <a class="btn btn-gray" href="/uploads/clips/{{ job.job_id }}/{{ clip.clip_filename }}" download>클립 다운로드</a>
         <button class="btn btn-purple" onclick="copyPrompt(this, `{{ clip.prompt | replace('`', '') }}`)">프롬프트 복사</button>
-        {% if clip.output_url is defined %}
-        <a class="btn btn-green" href="{{ clip.output_url }}" target="_blank">결과 영상 열기</a>
-        {% endif %}
       </div>
     </div>
     {% endfor %}
   </div>
 
-  <div class="generate-btn">
-    <button class="big" id="generateBtn" onclick="startGenerate()">🎬 영상 생성 시작</button>
-  </div>
-  <div class="progress" id="progress"></div>
-
   <script>
-    const jobId = "{{ job.job_id }}";
-    let polling = false;
-
-    async function startGenerate() {
-      const btn = document.getElementById('generateBtn');
-      const notice = document.getElementById('statusNotice');
-      btn.disabled = true;
-      btn.textContent = '제출 중...';
-      notice.className = 'notice generating';
-      notice.textContent = '⏳ fal.ai에 제출 중입니다...';
-
-      const res = await fetch(`/api/job/${jobId}/generate`, { method: 'POST' });
-      const data = await res.json();
-
-      if (!res.ok) {
-        notice.className = 'notice error';
-        notice.textContent = '❌ 오류: ' + (data.detail || '알 수 없는 오류');
-        btn.disabled = false;
-        btn.textContent = '다시 시도';
-        return;
-      }
-
-      notice.textContent = '⏳ 생성 중입니다. 클립당 1~3분 소요됩니다...';
-      btn.textContent = '생성 중...';
-
-      // 배지 업데이트
-      document.querySelectorAll('.badge.pending').forEach(b => {
-        b.className = 'badge generating';
-        b.textContent = '생성중';
-      });
-
-      startPolling();
-    }
-
-    function startPolling() {
-      polling = true;
-      pollLoop();
-    }
-
-    async function pollLoop() {
-      if (!polling) return;
-
-      try {
-        const res = await fetch(`/api/job/${jobId}/poll`);
-        const data = await res.json();
-
-        document.getElementById('progress').textContent = `완료: ${data.completed} / ${data.total}`;
-
-        if (data.all_done) {
-          polling = false;
-          document.getElementById('statusNotice').className = 'notice ready';
-          document.getElementById('statusNotice').textContent = '✅ 모든 영상 생성 완료!';
-          document.getElementById('generateBtn').textContent = '✅ 완료';
-          location.reload();
-          return;
-        }
-      } catch (e) {}
-
-      setTimeout(pollLoop, 5000); // 5초마다 확인
-    }
-
     function copyPrompt(btn, text) {
       navigator.clipboard.writeText(text);
       btn.textContent = '복사됨!';
