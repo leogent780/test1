@@ -23,8 +23,9 @@ def submit_video(clip_path: str, product_image_path: str, prompt: str) -> str:
             "prompt": full_prompt,
             "video_urls": [clip_url],
             "image_urls": [image_url],
-            "resolution": "720p",
+            "resolution": "480p",
             "aspect_ratio": "9:16",
+            "duration": "4",
         },
     )
 
