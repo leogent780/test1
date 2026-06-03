@@ -34,7 +34,7 @@ async def review_prompts(request: Request, job_id: str):
     clips = job.get("clips", [])
     if clips and "prompt" not in clips[0]:
         try:
-            clips = generate_prompts_for_clips(clips, job["product_description"])
+            clips = generate_prompts_for_clips(clips, job["product_description"], job.get("mode", "product"))
             update_job(job_id, {"clips": clips, "status": "review_prompts"})
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"프롬프트 생성 오류: {traceback.format_exc()}")

@@ -23,24 +23,28 @@ def _safe_filename(filename: str) -> str:
 @router.post("/upload")
 async def upload_files(
     reference_video: UploadFile = File(...),
-    product_image: UploadFile = File(...),
     product_description: str = Form(...),
+    mode: str = Form("product"),
+    product_image: UploadFile = File(None),
 ):
     job_id = str(uuid.uuid4())[:8]
 
-    # 파일 저장 (한글 파일명 안전하게 변환)
     ref_path = DIRS["reference"] / f"{job_id}_{_safe_filename(reference_video.filename)}"
-    prod_path = DIRS["product"] / f"{job_id}_{_safe_filename(product_image.filename)}"
+    with open(ref_path, "wb") as f:
+        shutil.copyfileobj(reference_video.file, f)
 
-    for upload, path in [(reference_video, ref_path), (product_image, prod_path)]:
-        with open(path, "wb") as f:
-            shutil.copyfileobj(upload.file, f)
+    prod_path = None
+    if mode == "product" and product_image and product_image.filename:
+        prod_path = DIRS["product"] / f"{job_id}_{_safe_filename(product_image.filename)}"
+        with open(prod_path, "wb") as f:
+            shutil.copyfileobj(product_image.file, f)
 
     create_job(job_id, {
         "job_id": job_id,
         "reference_video": str(ref_path),
-        "product_image": str(prod_path),
+        "product_image": str(prod_path) if prod_path else None,
         "product_description": product_description,
+        "mode": mode,
         "status": "detecting_scenes",
     })
 
