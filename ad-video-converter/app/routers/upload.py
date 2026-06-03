@@ -167,20 +167,33 @@ async def poll_results(job_id: str):
 @router.get("/higgsfield/debug")
 async def higgsfield_debug():
     """Higgsfield 토큰 & create-media 응답 확인용 디버그 엔드포인트"""
-    import os
+    import os, uuid as _uuid
     from app.config import HIGGSFIELD_TOKEN
     BASE = "https://fnf.higgsfield.ai"
     headers = {"Authorization": f"Bearer {HIGGSFIELD_TOKEN}", "Accept": "application/json"}
     results = {
         "token_preview": HIGGSFIELD_TOKEN[:30] + "..." if HIGGSFIELD_TOKEN else "EMPTY",
         "token_length": len(HIGGSFIELD_TOKEN),
-        "env_direct": (os.getenv("HIGGSFIELD_TOKEN", "")[:30] + "...") if os.getenv("HIGGSFIELD_TOKEN") else "EMPTY",
     }
+    # POST /video 시도
     try:
         with httpx.Client(timeout=15) as client:
             r = client.post(f"{BASE}/video", headers=headers)
-            results["create_media_status"] = r.status_code
-            results["create_media_body"] = r.text
+            results["post_video_status"] = r.status_code
+            results["post_video_body"] = r.text
     except Exception as e:
-        results["create_media_error"] = str(e)
+        results["post_video_error"] = str(e)
+    # 클라이언트 생성 UUID로 upload 엔드포인트 시도
+    test_uuid = str(_uuid.uuid4())
+    try:
+        with httpx.Client(timeout=15) as client:
+            r = client.post(
+                f"{BASE}/video/{test_uuid}/upload",
+                headers=headers,
+                json={"force_nsfw_check": True, "force_ip_check": True},
+            )
+            results["upload_status"] = r.status_code
+            results["upload_body"] = r.text
+    except Exception as e:
+        results["upload_error"] = str(e)
     return results
