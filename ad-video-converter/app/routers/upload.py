@@ -97,8 +97,8 @@ async def update_prompts(job_id: str, prompts: dict[str, str]):
 
 @router.post("/job/{job_id}/generate")
 async def generate_videos(job_id: str):
-    """fal.ai Seedance 2.0으로 모든 클립 영상 생성"""
-    from app.services.fal_client import generate_videos_for_clips
+    """fal.ai에 모든 클립 제출 (비동기 - 즉시 반환)"""
+    from app.services.fal_client import submit_all_clips
     import traceback
 
     job = get_job(job_id)
@@ -110,10 +110,49 @@ async def generate_videos(job_id: str):
     try:
         clips = job.get("clips", [])
         product_image_path = job["product_image"]
-        clips = generate_videos_for_clips(clips, product_image_path)
-        update_job(job_id, {"clips": clips, "status": "completed"})
+        clips = submit_all_clips(clips, product_image_path)
+        update_job(job_id, {"clips": clips, "status": "generating"})
     except Exception as e:
         update_job(job_id, {"status": "error", "error": traceback.format_exc()})
-        raise HTTPException(status_code=500, detail=f"생성 오류: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"제출 오류: {str(e)}")
 
-    return {"status": "completed", "clip_count": len(clips)}
+    return {"status": "generating", "clip_count": len(clips)}
+
+
+@router.get("/job/{job_id}/poll")
+async def poll_results(job_id: str):
+    """각 클립의 생성 상태 확인 및 완료된 클립 결과 수집"""
+    from app.services.fal_client import check_status, get_result
+
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    clips = job.get("clips", [])
+    all_done = True
+
+    for clip in clips:
+        if "request_id" not in clip:
+            continue
+        if clip.get("output_status") == "completed":
+            continue
+
+        status = check_status(clip["request_id"])
+        if status["status"] == "Completed":
+            clip["output_url"] = get_result(clip["request_id"])
+            clip["output_status"] = "completed"
+        elif status["status"] == "Failed":
+            clip["output_status"] = "failed"
+        else:
+            all_done = False
+
+    if all_done and all(c.get("output_status") in ("completed", "failed") for c in clips if "request_id" in c):
+        update_job(job_id, {"clips": clips, "status": "completed"})
+    else:
+        update_job(job_id, {"clips": clips})
+
+    completed = sum(1 for c in clips if c.get("output_status") == "completed")
+    total = sum(1 for c in clips if "request_id" in c)
+
+    return {"completed": completed, "total": total, "all_done": all_done}
+

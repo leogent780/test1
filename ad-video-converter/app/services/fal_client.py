@@ -6,20 +6,18 @@ os.environ["FAL_KEY"] = FAL_API_KEY
 
 
 def upload_file(file_path: str) -> str:
-    """로컬 파일을 fal.ai에 업로드하고 URL 반환"""
     url = fal_client.upload_file(file_path)
     return url
 
 
-def generate_video(clip_path: str, product_image_path: str, prompt: str) -> str:
-    """클립 + 제품 이미지 + 프롬프트로 영상 생성 후 결과 URL 반환"""
+def submit_video(clip_path: str, product_image_path: str, prompt: str) -> str:
+    """클립 + 제품 이미지 + 프롬프트를 fal.ai에 제출하고 request_id 반환"""
     clip_url = upload_file(clip_path)
     image_url = upload_file(product_image_path)
 
-    # @Video1, @Image1 참조를 프롬프트에 추가해야 fal.ai가 인식함
     full_prompt = f"Use @Video1 as the reference video. Use @Image1 as the replacement product. {prompt}"
 
-    result = fal_client.subscribe(
+    handler = fal_client.submit(
         "bytedance/seedance-2.0/reference-to-video",
         arguments={
             "prompt": full_prompt,
@@ -30,15 +28,36 @@ def generate_video(clip_path: str, product_image_path: str, prompt: str) -> str:
         },
     )
 
+    return handler.request_id
+
+
+def check_status(request_id: str) -> dict:
+    """request_id로 생성 상태 확인"""
+    status = fal_client.status(
+        "bytedance/seedance-2.0/reference-to-video",
+        request_id,
+        with_logs=False,
+    )
+    return {"status": type(status).__name__, "request_id": request_id}
+
+
+def get_result(request_id: str) -> str:
+    """완료된 request_id에서 결과 영상 URL 반환"""
+    result = fal_client.result(
+        "bytedance/seedance-2.0/reference-to-video",
+        request_id,
+    )
     return result["video"]["url"]
 
 
-def generate_videos_for_clips(clips: list[dict], product_image_path: str) -> list[dict]:
-    """모든 클립에 대해 영상 생성"""
+def submit_all_clips(clips: list[dict], product_image_path: str) -> list[dict]:
+    """모든 클립을 fal.ai에 제출하고 request_id 저장"""
     for clip in clips:
-        clip["output_url"] = generate_video(
+        request_id = submit_video(
             clip["clip_path"],
             product_image_path,
             clip["prompt"],
         )
+        clip["request_id"] = request_id
+        clip["output_status"] = "queued"
     return clips
