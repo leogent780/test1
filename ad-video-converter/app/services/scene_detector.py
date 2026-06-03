@@ -8,8 +8,8 @@ from app.config import DIRS, SCENE_THRESHOLD, MIN_CLIP_DURATION
 def _get_video_duration(video_path: str) -> float:
     import subprocess, json
     result = subprocess.run([
-        "ffprobe", "-v", "quiet", "-print_format", "json",
-        "-show_format", video_path
+        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        "-of", "json", video_path
     ], capture_output=True, text=True)
     info = json.loads(result.stdout)
     return float(info["format"]["duration"])
