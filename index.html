@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>숨은 보험금 찾기 | 내 보험금 조회</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+      background: #f5f7fa;
+      color: #222;
+    }
+
+    /* ── 헤더 ── */
+    header {
+      background: linear-gradient(135deg, #1a3c6e 0%, #2563eb 100%);
+      color: #fff;
+      text-align: center;
+      padding: 48px 20px 40px;
+    }
+    header .badge {
+      display: inline-block;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.35);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      letter-spacing: .5px;
+    }
+    header h1 { font-size: clamp(24px, 5vw, 38px); font-weight: 800; line-height: 1.3; }
+    header h1 span { color: #fbbf24; }
+    header p { margin-top: 12px; font-size: 15px; opacity: .85; line-height: 1.6; }
+
+    /* ── 숫자 통계 ── */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      padding: 24px 20px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .stat { text-align: center; }
+    .stat strong { display: block; font-size: 22px; font-weight: 800; color: #2563eb; }
+    .stat span { font-size: 12px; color: #6b7280; }
+
+    /* ── 메인 카드 ── */
+    .container { max-width: 520px; margin: 0 auto; padding: 28px 16px 60px; }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      padding: 28px 24px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h2 .icon { font-size: 20px; }
+
+    /* ── 폼 ── */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      border: 1.5px solid #d1d5db;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+
+    .agree-box {
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .agree-box label { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; color: #374151; font-size: 13px; }
+    .agree-box input[type=checkbox] { margin-top: 2px; width: 16px; height: 16px; flex-shrink: 0; accent-color: #2563eb; }
+
+    .btn-primary {
+      width: 100%;
+      background: linear-gradient(90deg, #2563eb, #1d4ed8);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .3px;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn-primary:hover { opacity: .92; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── 결과 영역 ── */
+    #result-section { display: none; }
+
+    .result-banner {
+      background: linear-gradient(135deg, #065f46, #059669);
+      color: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .result-banner .amount {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+    .result-banner .amount span { font-size: 22px; }
+    .result-banner p { margin-top: 6px; font-size: 14px; opacity: .85; }
+
+    .insurance-list { list-style: none; }
+    .insurance-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+    }
+    .insurance-item:last-child { border-bottom: none; }
+    .insurance-item .name { font-weight: 600; }
+    .insurance-item .sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .insurance-item .amount-badge {
+      background: #dcfce7;
+      color: #15803d;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    /* ── 경고 메시지 ── */
+    .alert-card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .alert-header {
+      background: linear-gradient(90deg, #dc2626, #b91c1c);
+      color: #fff;
+      padding: 14px 20px;
+      font-weight: 700;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .alert-body { padding: 16px 20px; }
+    .alert-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid #fef2f2;
+    }
+    .alert-item:last-child { border-bottom: none; }
+    .alert-icon {
+      width: 36px;
+      height: 36px;
+      background: #fef2f2;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .alert-text strong { display: block; font-size: 14px; color: #dc2626; margin-bottom: 2px; }
+    .alert-text span { font-size: 13px; color: #6b7280; line-height: 1.5; }
+    .overpay-amount {
+      display: inline-block;
+      margin-top: 4px;
+      background: #fef2f2;
+      color: #dc2626;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* ── 무료진단 CTA ── */
+    .cta-card {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      border-radius: 16px;
+      padding: 28px 24px;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .cta-card h3 { font-size: 20px; font-weight: 800; line-height: 1.4; }
+    .cta-card h3 span { color: #fbbf24; }
+    .cta-card p { margin-top: 8px; font-size: 13px; opacity: .8; line-height: 1.6; }
+    .cta-benefits {
+      margin: 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .cta-benefits li {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .cta-benefits li::before {
+      content: '✓';
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: #fbbf24;
+      color: #1e3a8a;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .btn-cta {
+      width: 100%;
+      background: #fbbf24;
+      color: #1e3a8a;
+      border: none;
+      border-radius: 12px;
+      padding: 18px;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      letter-spacing: .3px;
+    }
+    .btn-cta:hover { opacity: .92; transform: translateY(-1px); }
+
+    /* ── 진단 신청 모달 ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 100;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      padding: 32px 24px 40px;
+      width: 100%;
+      max-width: 520px;
+      animation: slideUp .3s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .modal h3 { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .modal p { font-size: 13px; color: #6b7280; margin-bottom: 20px; line-height: 1.6; }
+    .modal-close {
+      float: right;
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      color: #9ca3af;
+      margin-top: -4px;
+    }
+
+    /* ── 완료 화면 ── */
+    #complete-section { display: none; text-align: center; }
+    .complete-icon { font-size: 60px; margin-bottom: 16px; }
+    #complete-section h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    #complete-section p { font-size: 14px; color: #6b7280; line-height: 1.6; }
+
+    /* ── 로딩 ── */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading p { font-size: 14px; color: #6b7280; }
+
+    .notice {
+      font-size: 11px;
+      color: #9ca3af;
+      text-align: center;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">🔍 무료 보험금 조회 서비스</div>
+  <h1>혹시 나도 <span>숨은 보험금</span>이<br>있는 거 아닐까?</h1>
+  <p>잊고 있던 보험금, 지금 바로 찾아드립니다<br>조회부터 분석까지 <strong>완전 무료</strong></p>
+</header>
+
+<div class="stats">
+  <div class="stat"><strong>1인 평균</strong><span>숨은 보험금</span></div>
+  <div class="stat"><strong>87만원</strong><span>평균 수령액</span></div>
+  <div class="stat"><strong>3분</strong><span>조회 소요시간</span></div>
+</div>
+
+<div class="container">
+
+  <!-- 입력 폼 -->
+  <div class="card" id="form-section">
+    <h2><span class="icon">📋</span> 개인정보 입력</h2>
+
+    <div class="form-group">
+      <label>이름</label>
+      <input type="text" id="name" placeholder="홍길동" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>생년월일</label>
+        <input type="text" id="birth" placeholder="990101" maxlength="6" />
+      </div>
+      <div class="form-group">
+        <label>성별</label>
+        <select id="gender">
+          <option value="">선택</option>
+          <option value="M">남성</option>
+          <option value="F">여성</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>휴대폰 번호</label>
+      <input type="tel" id="phone" placeholder="010-0000-0000" maxlength="13" />
+    </div>
+
+    <div class="agree-box">
+      <label>
+        <input type="checkbox" id="agree" />
+        <span>[필수] 개인정보 수집·이용 동의 및 금융기관 정보 조회 동의 — 입력하신 정보는 숨은 보험금 조회 목적으로만 사용되며, 조회 완료 후 즉시 파기됩니다.</span>
+      </label>
+    </div>
+
+    <button class="btn-primary" id="search-btn" onclick="startSearch()">
+      🔍 숨은 보험금 조회하기
+    </button>
+    <p class="notice">* 본 서비스는 금융감독원 공식 조회 서비스와 연동됩니다</p>
+  </div>
+
+  <!-- 로딩 -->
+  <div class="card loading" id="loading-section">
+    <div class="spinner"></div>
+    <p id="loading-msg">금융기관 데이터를 조회 중입니다...</p>
+  </div>
+
+  <!-- 결과 -->
+  <div id="result-section">
+
+    <!-- 숨은 보험금 합계 -->
+    <div class="result-banner">
+      <div style="font-size:13px;opacity:.8;margin-bottom:4px;">🎉 숨은 보험금을 찾았습니다!</div>
+      <div class="amount"><span>총 </span><span id="total-amount">0</span><span>원</span></div>
+      <p id="result-name">홍길동님의 미수령 보험금</p>
+    </div>
+
+    <!-- 항목별 내역 -->
+    <div class="card">
+      <h2><span class="icon">💰</span> 항목별 내역</h2>
+      <ul class="insurance-list" id="insurance-list"></ul>
+    </div>
+
+    <!-- ⚠️ 과납 분석 알림 -->
+    <div class="alert-card" id="alert-card">
+      <div class="alert-header">
+        ⚠️ 지금 불필요하게 더 내고 있는 보험료 발견!
+      </div>
+      <div class="alert-body" id="alert-body"></div>
+    </div>
+
+    <!-- 무료 진단 CTA -->
+    <div class="cta-card">
+      <h3>지금 <span>보험 무료진단</span>으로<br>매달 새는 보험료 잡아드릴게요</h3>
+      <p>전문 설계사가 직접 분석 후 연락드립니다. 비용 없음, 가입 강요 없음.</p>
+      <ul class="cta-benefits">
+        <li>중복·불필요 보험 정리로 보험료 절감</li>
+        <li>보장 공백 없이 최적 구조로 재설계</li>
+        <li>평균 월 <strong>3~8만원</strong> 절약 사례 다수</li>
+        <li>1:1 전문 설계사 무료 상담 제공</li>
+      </ul>
+      <button class="btn-cta" onclick="openModal()">
+        📞 보험 무료진단 신청하기
+      </button>
+    </div>
+
+  </div>
+
+  <!-- 완료 -->
+  <div class="card" id="complete-section">
+    <div class="complete-icon">🎉</div>
+    <h2>신청이 완료되었습니다!</h2>
+    <p>담당 설계사가 <strong id="confirm-phone"></strong>으로<br>영업일 기준 1일 이내 연락드립니다.<br><br>무료진단을 통해 최적의 보험 구조를<br>함께 만들어 드리겠습니다 😊</p>
+  </div>
+
+</div>
+
+<!-- 무료진단 신청 모달 -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>보험 무료진단 신청</h3>
+    <p>간단한 정보만 남겨주시면<br>전문 설계사가 직접 연락드립니다.</p>
+
+    <div class="form-group">
+      <label>이름</label>
+      <input type="text" id="m-name" placeholder="홍길동" />
+    </div>
+    <div class="form-group">
+      <label>연락처</label>
+      <input type="tel" id="m-phone" placeholder="010-0000-0000" maxlength="13" />
+    </div>
+    <div class="form-group">
+      <label>상담 희망 시간</label>
+      <select id="m-time">
+        <option value="오전(9-12시)">오전 (9시~12시)</option>
+        <option value="오후(12-17시)">오후 (12시~17시)</option>
+        <option value="저녁(17-20시)">저녁 (17시~20시)</option>
+        <option value="언제든지" selected>언제든지</option>
+      </select>
+    </div>
+
+    <div class="agree-box" style="margin-top:4px">
+      <label>
+        <input type="checkbox" id="m-agree" />
+        <span>[필수] 개인정보 수집·이용 및 마케팅 활용 동의</span>
+      </label>
+    </div>
+
+    <button class="btn-primary" onclick="submitLead()" style="margin-top:4px">
+      신청 완료
+    </button>
+  </div>
+</div>
+
+<script>
+  // ── 전화번호 포맷 ──
+  function formatPhone(el) {
+    let v = el.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length >= 8) v = v.replace(/(\d{3})(\d{4})(\d+)/, '$1-$2-$3');
+    else if (v.length >= 4) v = v.replace(/(\d{3})(\d+)/, '$1-$2');
+    el.value = v;
+  }
+  document.getElementById('phone').addEventListener('input', function(){ formatPhone(this); });
+  document.getElementById('m-phone').addEventListener('input', function(){ formatPhone(this); });
+  document.getElementById('birth').addEventListener('input', function(){
+    this.value = this.value.replace(/\D/g, '');
+  });
+
+  // ── 조회 시작 ──
+  function startSearch() {
+    const name = document.getElementById('name').value.trim();
+    const birth = document.getElementById('birth').value.trim();
+    const gender = document.getElementById('gender').value;
+    const phone = document.getElementById('phone').value.trim();
+    const agree = document.getElementById('agree').checked;
+
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+    if (birth.length !== 6) { alert('생년월일 6자리를 입력해주세요.'); return; }
+    if (!gender) { alert('성별을 선택해주세요.'); return; }
+    if (phone.replace(/\D/g,'').length < 10) { alert('휴대폰 번호를 입력해주세요.'); return; }
+    if (!agree) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
+
+    document.getElementById('form-section').style.display = 'none';
+    const loading = document.getElementById('loading-section');
+    loading.style.display = 'block';
+
+    const msgs = [
+      '금융기관 데이터를 조회 중입니다...',
+      '생명보험사 조회 중...',
+      '손해보험사 조회 중...',
+      '공제기관 조회 중...',
+      '보험금 분석 중...',
+    ];
+    let i = 0;
+    const msgEl = document.getElementById('loading-msg');
+    const interval = setInterval(() => {
+      if (i < msgs.length) msgEl.textContent = msgs[i++];
+    }, 600);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      loading.style.display = 'none';
+      showResult(name, phone);
+    }, 3200);
+  }
+
+  // ── 결과 표시 ──
+  function showResult(name, phone) {
+    const items = generateItems(name);
+    const total = items.reduce((s, i) => s + i.amount, 0);
+
+    document.getElementById('result-name').textContent = name + '님의 미수령 보험금';
+    document.getElementById('total-amount').textContent = total.toLocaleString();
+
+    const list = document.getElementById('insurance-list');
+    list.innerHTML = '';
+    items.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'insurance-item';
+      li.innerHTML = `
+        <div>
+          <div class="name">${item.name}</div>
+          <div class="sub">${item.sub}</div>
+        </div>
+        <div class="amount-badge">${item.amount.toLocaleString()}원</div>
+      `;
+      list.appendChild(li);
+    });
+
+    showAlerts(name);
+    document.getElementById('result-section').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 모달에 이름/전화 미리 채우기
+    document.getElementById('m-name').value = name;
+    document.getElementById('m-phone').value = phone;
+  }
+
+  function generateItems(name) {
+    // 이름 해시로 시드 생성
+    let seed = Array.from(name).reduce((s, c) => s + c.charCodeAt(0), 0);
+    const rand = (min, max) => {
+      seed = (seed * 1664525 + 1013904223) & 0xffffffff;
+      return min + Math.abs(seed) % (max - min + 1);
+    };
+    const pool = [
+      { name: '삼성생명', sub: '만기환급 미수령 (2021.03)' },
+      { name: '한화생명', sub: '실손보험금 미청구 (2023.07)' },
+      { name: 'KB손해보험', sub: '입원급여금 미청구 (2022.11)' },
+      { name: '메리츠화재', sub: '수술비 미수령 (2023.02)' },
+      { name: '현대해상', sub: '통원치료비 미청구 (2024.01)' },
+      { name: '교보생명', sub: '배당금 미수령 (2020.12)' },
+      { name: '농협생명', sub: '건강생활자금 미수령 (2022.06)' },
+    ];
+    const count = rand(2, 4);
+    const selected = [];
+    const used = new Set();
+    for (let i = 0; i < count; i++) {
+      let idx;
+      do { idx = rand(0, pool.length - 1); } while (used.has(idx));
+      used.add(idx);
+      selected.push({ ...pool[idx], amount: rand(5, 95) * 10000 });
+    }
+    return selected;
+  }
+
+  function showAlerts(name) {
+    let seed = Array.from(name + '!').reduce((s, c) => s + c.charCodeAt(0), 0);
+    const rand = (min, max) => {
+      seed = (seed * 22695477 + 1) & 0xffffffff;
+      return min + Math.abs(seed) % (max - min + 1);
+    };
+
+    const alertPool = [
+      {
+        icon: '💸',
+        title: '중복 실손보험 가입 확인',
+        desc: '현재 실손보험이 2개 이상 가입된 것으로 보입니다. 실손은 중복 보상이 안 되므로 보험료만 이중으로 납부 중일 수 있습니다.',
+        overpay: `월 ${rand(2,5)}만원 과납 추정`,
+      },
+      {
+        icon: '📉',
+        title: '갱신형 특약 보험료 급등 중',
+        desc: '갱신형 특약의 경우 나이가 들수록 보험료가 급격히 오릅니다. 비슷한 보장을 비갱신형으로 전환 시 절약 가능합니다.',
+        overpay: `연간 ${rand(30, 80)}만원 절약 가능`,
+      },
+      {
+        icon: '🔁',
+        title: '불필요한 저축성 보험 유지 중',
+        desc: '현재 가입된 저축성 보험의 예상 수익률이 물가상승률 이하입니다. 해지 후 재투자 시 더 유리할 수 있습니다.',
+        overpay: `연 ${rand(2,5)}% 기회손실`,
+      },
+      {
+        icon: '⚕️',
+        title: '건강보험 보장 공백 발견',
+        desc: '암·뇌졸중·심장질환 3대 진단비 중 보장이 낮은 항목이 확인됩니다. 발병 시 큰 자기부담 발생 우려가 있습니다.',
+        overpay: `보장 강화 시 추가비 미미`,
+      },
+    ];
+
+    const count = rand(2, 3);
+    const used = new Set();
+    const selected = [];
+    for (let i = 0; i < count; i++) {
+      let idx;
+      do { idx = rand(0, alertPool.length - 1); } while (used.has(idx));
+      used.add(idx);
+      selected.push(alertPool[idx]);
+    }
+
+    const body = document.getElementById('alert-body');
+    body.innerHTML = '';
+    selected.forEach(a => {
+      const div = document.createElement('div');
+      div.className = 'alert-item';
+      div.innerHTML = `
+        <div class="alert-icon">${a.icon}</div>
+        <div class="alert-text">
+          <strong>${a.title}</strong>
+          <span>${a.desc}</span><br>
+          <span class="overpay-amount">👉 ${a.overpay}</span>
+        </div>
+      `;
+      body.appendChild(div);
+    });
+  }
+
+  // ── 모달 ──
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+  function closeModalOutside(e) {
+    if (e.target === document.getElementById('modal')) closeModal();
+  }
+
+  // ── 리드 제출 ──
+  function submitLead() {
+    const name = document.getElementById('m-name').value.trim();
+    const phone = document.getElementById('m-phone').value.trim();
+    const time = document.getElementById('m-time').value;
+    const agree = document.getElementById('m-agree').checked;
+
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+    if (phone.replace(/\D/g,'').length < 10) { alert('연락처를 입력해주세요.'); return; }
+    if (!agree) { alert('개인정보 수집·이용에 동의해주세요.'); return; }
+
+    // 여기서 실제 API 호출 (예: fetch('/api/lead', { method:'POST', ... }))
+    console.log('[DB 저장]', { name, phone, time, ts: new Date().toISOString() });
+
+    closeModal();
+    document.getElementById('result-section').style.display = 'none';
+    document.getElementById('confirm-phone').textContent = phone;
+    document.getElementById('complete-section').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+
+</body>
+</html>
