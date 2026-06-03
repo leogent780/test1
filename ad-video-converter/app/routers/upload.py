@@ -1,6 +1,7 @@
 import uuid
 import re
 import shutil
+import httpx
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
@@ -97,9 +98,10 @@ async def update_prompts(job_id: str, prompts: dict[str, str]):
 
 @router.post("/job/{job_id}/generate")
 async def generate_videos(job_id: str):
-    """fal.ai에 모든 클립 제출 (비동기 - 즉시 반환)"""
-    from app.services.fal_client import submit_all_clips
+    """Higgsfield에 모든 클립 제출"""
+    from app.services.higgsfield_client import submit_all_clips
     import traceback
+    import httpx
 
     job = get_job(job_id)
     if not job:
@@ -112,6 +114,10 @@ async def generate_videos(job_id: str):
         product_image_path = job["product_image"]
         clips = submit_all_clips(clips, product_image_path)
         update_job(job_id, {"clips": clips, "status": "generating"})
+    except httpx.HTTPStatusError as e:
+        body = e.response.text
+        update_job(job_id, {"status": "error", "error": body})
+        raise HTTPException(status_code=502, detail=f"Higgsfield API 오류 ({e.response.status_code}): {body}")
     except Exception as e:
         update_job(job_id, {"status": "error", "error": traceback.format_exc()})
         raise HTTPException(status_code=500, detail=f"제출 오류: {str(e)}")
@@ -122,7 +128,7 @@ async def generate_videos(job_id: str):
 @router.get("/job/{job_id}/poll")
 async def poll_results(job_id: str):
     """각 클립의 생성 상태 확인 및 완료된 클립 결과 수집"""
-    from app.services.fal_client import check_status, get_result
+    from app.services.higgsfield_client import check_status, get_result
 
     job = get_job(job_id)
     if not job:
@@ -138,10 +144,11 @@ async def poll_results(job_id: str):
             continue
 
         status = check_status(clip["request_id"])
-        if status["status"] == "Completed":
+        s = status["status"].lower()
+        if s in ("completed", "succeeded", "success", "done"):
             clip["output_url"] = get_result(clip["request_id"])
             clip["output_status"] = "completed"
-        elif status["status"] == "Failed":
+        elif s in ("failed", "error", "cancelled"):
             clip["output_status"] = "failed"
         else:
             all_done = False
@@ -156,3 +163,19 @@ async def poll_results(job_id: str):
 
     return {"completed": completed, "total": total, "all_done": all_done}
 
+
+@router.get("/higgsfield/debug")
+async def higgsfield_debug():
+    """Higgsfield 토큰 & create-media 응답 확인용 디버그 엔드포인트"""
+    from app.config import HIGGSFIELD_TOKEN
+    BASE = "https://fnf.higgsfield.ai"
+    headers = {"Authorization": f"Bearer {HIGGSFIELD_TOKEN}", "Accept": "application/json"}
+    results = {}
+    try:
+        with httpx.Client(timeout=15) as client:
+            r = client.post(f"{BASE}/video", headers=headers)
+            results["create_media_status"] = r.status_code
+            results["create_media_body"] = r.text
+    except Exception as e:
+        results["create_media_error"] = str(e)
+    return results
