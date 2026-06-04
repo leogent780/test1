@@ -26,24 +26,31 @@ def _find_bin(name: str) -> str:
 
 
 def _get_video_duration(video_path: str) -> float:
-    import json
-    result = subprocess.run([
-        _find_bin("ffprobe"), "-v", "error", "-show_entries", "format=duration",
-        "-of", "json", video_path
-    ], capture_output=True, text=True)
-    if result.returncode != 0 or not result.stdout.strip():
-        # ffprobe 없으면 ffmpeg로 대체
-        result2 = subprocess.run([
-            _find_bin("ffmpeg"), "-i", video_path
+    import json, re
+    # ffprobe 시도
+    try:
+        result = subprocess.run([
+            _find_bin("ffprobe"), "-v", "error", "-show_entries", "format=duration",
+            "-of", "json", video_path
         ], capture_output=True, text=True)
-        import re
+        if result.returncode == 0 and result.stdout.strip():
+            info = json.loads(result.stdout)
+            return float(info["format"]["duration"])
+    except Exception:
+        pass
+    # ffmpeg으로 fallback
+    try:
+        result2 = subprocess.run(
+            [_find_bin("ffmpeg"), "-i", video_path],
+            capture_output=True, text=True
+        )
         m = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)", result2.stderr)
         if m:
             h, mn, s = int(m.group(1)), int(m.group(2)), float(m.group(3))
             return h * 3600 + mn * 60 + s
-        return 30.0
-    info = json.loads(result.stdout)
-    return float(info["format"]["duration"])
+    except Exception:
+        pass
+    return 30.0
 
 
 def detect_scenes(video_path: str) -> list[dict]:
