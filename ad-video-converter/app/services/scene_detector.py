@@ -1,14 +1,26 @@
 import subprocess
+import shutil
 from pathlib import Path
 from scenedetect import open_video, SceneManager
 from scenedetect.detectors import ContentDetector
 from app.config import DIRS, SCENE_THRESHOLD, MIN_CLIP_DURATION
 
 
+def _find_bin(name: str) -> str:
+    found = shutil.which(name)
+    if found:
+        return found
+    # Nix store fallback
+    for candidate in [f"/usr/bin/{name}", f"/usr/local/bin/{name}", f"/nix/var/nix/profiles/default/bin/{name}"]:
+        if Path(candidate).exists():
+            return candidate
+    return name
+
+
 def _get_video_duration(video_path: str) -> float:
     import subprocess, json
     result = subprocess.run([
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
+        _find_bin("ffprobe"), "-v", "error", "-show_entries", "format=duration",
         "-of", "json", video_path
     ], capture_output=True, text=True)
     info = json.loads(result.stdout)
@@ -55,7 +67,7 @@ def split_clips(video_path: str, scenes: list[dict], job_id: str) -> list[dict]:
         clip_path = clips_dir / clip_filename
 
         cmd = [
-            "ffmpeg", "-y",
+            _find_bin("ffmpeg"), "-y",
             "-ss", str(scene["start"]),
             "-to", str(scene["end"]),
             "-i", video_path,
@@ -70,7 +82,7 @@ def split_clips(video_path: str, scenes: list[dict], job_id: str) -> list[dict]:
         mid_time = scene["start"] + scene["duration"] / 2
         thumb_path = clips_dir / f"thumb_{scene['index']:03d}.jpg"
         thumb_cmd = [
-            "ffmpeg", "-y",
+            _find_bin("ffmpeg"), "-y",
             "-ss", str(mid_time),
             "-i", video_path,
             "-vframes", "1",
