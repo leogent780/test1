@@ -1,5 +1,8 @@
 [phases.setup]
 nixPkgs = ["ffmpeg", "python311", "libxcb", "xorg.libX11", "xorg.libXext", "xorg.libXrender", "xorg.libICE", "xorg.libSM", "libGL", "glib"]
 
+[phases.build]
+cmds = ["pip install -r requirements.txt"]
+
 [start]
-cmd = "python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+cmd = "ffmpeg -version && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT"
