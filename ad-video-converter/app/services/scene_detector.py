@@ -7,13 +7,21 @@ from app.config import DIRS, SCENE_THRESHOLD, MIN_CLIP_DURATION
 
 
 def _find_bin(name: str) -> str:
+    # 1) imageio-ffmpeg 번들 바이너리 우선
+    try:
+        import imageio_ffmpeg
+        ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+        ffprobe_path = str(Path(ffmpeg_path).parent / ("ffprobe" + (".exe" if ffmpeg_path.endswith(".exe") else "")))
+        if name == "ffmpeg":
+            return ffmpeg_path
+        if name == "ffprobe" and Path(ffprobe_path).exists():
+            return ffprobe_path
+    except Exception:
+        pass
+    # 2) 시스템 PATH
     found = shutil.which(name)
     if found:
         return found
-    # Nix store fallback
-    for candidate in [f"/usr/bin/{name}", f"/usr/local/bin/{name}", f"/nix/var/nix/profiles/default/bin/{name}"]:
-        if Path(candidate).exists():
-            return candidate
     return name
 
 
