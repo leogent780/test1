@@ -1,8 +1,11 @@
 import os
 import fal_client
-from app.config import FAL_API_KEY
 
-os.environ["FAL_KEY"] = FAL_API_KEY
+# FAL_KEY 또는 FAL_API_KEY 둘 다 지원
+if not os.environ.get("FAL_KEY"):
+    fal_key = os.environ.get("FAL_API_KEY", "")
+    if fal_key:
+        os.environ["FAL_KEY"] = fal_key
 
 
 def upload_file(file_path: str) -> str:
