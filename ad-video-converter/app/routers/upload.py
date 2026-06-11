@@ -102,10 +102,9 @@ async def update_prompts(job_id: str, prompts: dict[str, str]):
 
 @router.post("/job/{job_id}/generate")
 async def generate_videos(job_id: str):
-    """Higgsfield에 모든 클립 제출"""
-    from app.services.higgsfield_client import submit_all_clips
+    """fal.ai에 모든 클립 제출"""
+    from app.services.fal_client import submit_all_clips
     import traceback
-    import httpx
 
     job = get_job(job_id)
     if not job:
@@ -115,13 +114,9 @@ async def generate_videos(job_id: str):
 
     try:
         clips = job.get("clips", [])
-        product_image_path = job["product_image"]
+        product_image_path = job.get("product_image") or ""
         clips = submit_all_clips(clips, product_image_path)
         update_job(job_id, {"clips": clips, "status": "generating"})
-    except httpx.HTTPStatusError as e:
-        body = e.response.text
-        update_job(job_id, {"status": "error", "error": body})
-        raise HTTPException(status_code=502, detail=f"Higgsfield API 오류 ({e.response.status_code}): {body}")
     except Exception as e:
         update_job(job_id, {"status": "error", "error": traceback.format_exc()})
         raise HTTPException(status_code=500, detail=f"제출 오류: {str(e)}")
@@ -132,7 +127,7 @@ async def generate_videos(job_id: str):
 @router.get("/job/{job_id}/poll")
 async def poll_results(job_id: str):
     """각 클립의 생성 상태 확인 및 완료된 클립 결과 수집"""
-    from app.services.higgsfield_client import check_status, get_result
+    from app.services.fal_client import check_status, get_result
 
     job = get_job(job_id)
     if not job:
@@ -148,11 +143,11 @@ async def poll_results(job_id: str):
             continue
 
         status = check_status(clip["request_id"])
-        s = status["status"].lower()
-        if s in ("completed", "succeeded", "success", "done"):
+        s = status["status"]
+        if s == "Completed":
             clip["output_url"] = get_result(clip["request_id"])
             clip["output_status"] = "completed"
-        elif s in ("failed", "error", "cancelled"):
+        elif s == "Failed":
             clip["output_status"] = "failed"
         else:
             all_done = False
