@@ -14,14 +14,29 @@ def upload_file(file_path: str) -> str:
 
 
 def get_clip_duration(clip_path: str) -> str:
-    import subprocess, json
-    result = subprocess.run([
-        "ffprobe", "-v", "error", "-show_entries", "format=duration",
-        "-of", "json", clip_path
-    ], capture_output=True, text=True)
-    info = json.loads(result.stdout)
-    secs = float(info["format"]["duration"])
-    # Seedance 2.0 지원 범위: 4~15초, 최소 4초 보장
+    import subprocess, json, re, shutil
+    from app.services.scene_detector import _find_bin
+    secs = None
+    try:
+        result = subprocess.run([
+            _find_bin("ffprobe"), "-v", "error", "-show_entries", "format=duration",
+            "-of", "json", clip_path
+        ], capture_output=True, text=True)
+        if result.returncode == 0 and result.stdout.strip():
+            secs = float(json.loads(result.stdout)["format"]["duration"])
+    except Exception:
+        pass
+    if secs is None:
+        try:
+            result2 = subprocess.run([_find_bin("ffmpeg"), "-i", clip_path], capture_output=True, text=True)
+            m = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)", result2.stderr)
+            if m:
+                h, mn, s = int(m.group(1)), int(m.group(2)), float(m.group(3))
+                secs = h * 3600 + mn * 60 + s
+        except Exception:
+            pass
+    if secs is None:
+        secs = 5.0
     return str(max(4, min(15, round(secs))))
 
 
