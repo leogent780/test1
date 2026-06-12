@@ -1,24 +1,36 @@
-"""
-인메모리 job 상태 저장소.
-프로덕션에서는 Redis나 DB로 교체 가능.
-"""
+import json
+from pathlib import Path
 from typing import Any
+from app.config import BASE_DIR
 
-_store: dict[str, dict[str, Any]] = {}
+_JOBS_DIR = BASE_DIR / "uploads" / "jobs"
+_JOBS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _path(job_id: str) -> Path:
+    return _JOBS_DIR / f"{job_id}.json"
 
 
 def create_job(job_id: str, data: dict) -> None:
-    _store[job_id] = {"status": "created", **data}
+    job = {"status": "created", **data}
+    _path(job_id).write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
 
 
 def get_job(job_id: str) -> dict | None:
-    return _store.get(job_id)
+    p = _path(job_id)
+    if not p.exists():
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def update_job(job_id: str, data: dict) -> None:
-    if job_id in _store:
-        _store[job_id].update(data)
+    p = _path(job_id)
+    if not p.exists():
+        return
+    job = json.loads(p.read_text(encoding="utf-8"))
+    job.update(data)
+    p.write_text(json.dumps(job, ensure_ascii=False), encoding="utf-8")
 
 
 def list_jobs() -> list[dict]:
-    return list(_store.values())
+    return [json.loads(p.read_text(encoding="utf-8")) for p in _JOBS_DIR.glob("*.json")]
