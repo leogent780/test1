@@ -133,7 +133,7 @@
         document.getElementById('progress').textContent = `완료: ${data.completed} / ${data.total}`;
         if (data.all_done) {
           polling = false;
-          location.reload();
+          location.href = `/job/${jobId}/download`;
           return;
         }
       } catch (e) {}

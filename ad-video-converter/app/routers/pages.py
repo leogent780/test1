@@ -47,4 +47,23 @@ async def result(request: Request, job_id: str):
     job = get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
+    if job.get("status") == "completed":
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=f"/job/{job_id}/download")
     return templates.TemplateResponse("result.html", {"request": request, "job": job})
+
+
+@router.get("/job/{job_id}/download", response_class=HTMLResponse)
+async def download(request: Request, job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    clips = job.get("clips", [])
+    completed_count = sum(1 for c in clips if c.get("output_url"))
+    failed_count = sum(1 for c in clips if c.get("output_status") == "failed")
+    return templates.TemplateResponse("download.html", {
+        "request": request,
+        "job": job,
+        "completed_count": completed_count,
+        "failed_count": failed_count,
+    })
