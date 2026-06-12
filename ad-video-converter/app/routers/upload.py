@@ -26,6 +26,8 @@ async def upload_files(
     product_description: str = Form(...),
     mode: str = Form("product"),
     product_image: UploadFile = File(None),
+    character_image: UploadFile = File(None),
+    background_image: UploadFile = File(None),
 ):
     job_id = str(uuid.uuid4())[:8]
 
@@ -39,10 +41,24 @@ async def upload_files(
         with open(prod_path, "wb") as f:
             shutil.copyfileobj(product_image.file, f)
 
+    char_path = None
+    if character_image and character_image.filename:
+        char_path = DIRS["product"] / f"{job_id}_char_{_safe_filename(character_image.filename)}"
+        with open(char_path, "wb") as f:
+            shutil.copyfileobj(character_image.file, f)
+
+    bg_path = None
+    if background_image and background_image.filename:
+        bg_path = DIRS["product"] / f"{job_id}_bg_{_safe_filename(background_image.filename)}"
+        with open(bg_path, "wb") as f:
+            shutil.copyfileobj(background_image.file, f)
+
     create_job(job_id, {
         "job_id": job_id,
         "reference_video": str(ref_path),
         "product_image": str(prod_path) if prod_path else None,
+        "character_image": str(char_path) if char_path else None,
+        "background_image": str(bg_path) if bg_path else None,
         "product_description": product_description,
         "mode": mode,
         "status": "detecting_scenes",
@@ -115,7 +131,9 @@ async def generate_videos(job_id: str):
     try:
         clips = job.get("clips", [])
         product_image_path = job.get("product_image") or ""
-        clips = submit_all_clips(clips, product_image_path)
+        character_image_path = job.get("character_image") or ""
+        background_image_path = job.get("background_image") or ""
+        clips = submit_all_clips(clips, product_image_path, character_image_path, background_image_path)
         update_job(job_id, {"clips": clips, "status": "generating"})
     except Exception as e:
         update_job(job_id, {"status": "error", "error": traceback.format_exc()})

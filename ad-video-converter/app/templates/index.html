@@ -22,6 +22,7 @@
     .mode-btn.active .desc { color: #a0a0cc; }
     .field { margin-bottom: 20px; }
     label { display: block; font-size: 13px; color: #aaa; margin-bottom: 8px; }
+    label .opt { color: #555; font-size: 12px; margin-left: 6px; }
     input[type="file"], textarea {
       width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 8px;
       padding: 12px; color: #f0f0f0; font-size: 14px;
@@ -30,6 +31,9 @@
     input[type="file"]::file-selector-button {
       background: #333; color: #f0f0f0; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 10px;
     }
+    .section-divider { border: none; border-top: 1px solid #222; margin: 8px 0 20px; }
+    .section-title { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     button[type="submit"] {
       width: 100%; padding: 14px; background: #6366f1; color: white; border: none;
       border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px;
@@ -72,8 +76,22 @@
       </div>
 
       <div class="field" id="descField">
-        <label id="descLabel">제품 설명 (프롬프트 생성에 사용됩니다)</label>
+        <label id="descLabel">제품 설명 <span class="opt">(프롬프트 생성에 사용됩니다)</span></label>
         <textarea id="productDesc" placeholder="예: 민트색 스킨케어 세럼 병, 흰색 미니멀 패키징, 30ml" required></textarea>
+      </div>
+
+      <hr class="section-divider">
+      <p class="section-title">인물 / 배경 교체 <span style="color:#444">(선택)</span></p>
+
+      <div class="two-col">
+        <div class="field">
+          <label>인물 이미지 <span class="opt">선택</span></label>
+          <input type="file" id="characterImage" accept="image/*">
+        </div>
+        <div class="field">
+          <label>배경 이미지 <span class="opt">선택</span></label>
+          <input type="file" id="backgroundImage" accept="image/*">
+        </div>
       </div>
 
       <button type="submit" id="submitBtn">장면 분석 시작</button>
@@ -97,12 +115,12 @@
       if (mode === 'product') {
         imageField.classList.remove('hidden');
         document.getElementById('productImage').required = true;
-        descLabel.textContent = '제품 설명 (프롬프트 생성에 사용됩니다)';
+        descLabel.innerHTML = '제품 설명 <span class="opt">(프롬프트 생성에 사용됩니다)</span>';
         descTA.placeholder = '예: 민트색 스킨케어 세럼 병, 흰색 미니멀 패키징, 30ml';
       } else {
         imageField.classList.add('hidden');
         document.getElementById('productImage').required = false;
-        descLabel.textContent = '서비스 설명 (어떤 서비스인지 자세히 설명해주세요)';
+        descLabel.innerHTML = '서비스 설명 <span class="opt">(어떤 서비스인지 자세히 설명해주세요)</span>';
         descTA.placeholder = '예: 운동 루틴을 AI가 자동으로 만들어주는 피트니스 앱, 초보자도 쉽게 사용 가능';
       }
     }
@@ -124,6 +142,12 @@
         const imgFile = document.getElementById('productImage').files[0];
         if (imgFile) form.append('product_image', imgFile);
       }
+
+      const charFile = document.getElementById('characterImage').files[0];
+      if (charFile) form.append('character_image', charFile);
+
+      const bgFile = document.getElementById('backgroundImage').files[0];
+      if (bgFile) form.append('background_image', bgFile);
 
       try {
         const res = await fetch('/api/upload', { method: 'POST', body: form });

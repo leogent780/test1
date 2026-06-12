@@ -82,25 +82,47 @@ def _ensure_min_duration(clip_path: str, min_secs: float = 4.0) -> str:
     return tmp.name
 
 
-def submit_video(clip_path: str, product_image_path: str, prompt: str) -> str:
-    """클립 + 제품 이미지 + 프롬프트를 fal.ai에 제출하고 request_id 반환"""
+def submit_video(clip_path: str, product_image_path: str, prompt: str,
+                 character_image_path: str = "", background_image_path: str = "") -> str:
+    """클립 + 이미지들 + 프롬프트를 fal.ai에 제출하고 request_id 반환"""
     clip_path = _ensure_min_duration(clip_path)
     clip_url = upload_file(clip_path)
-    image_url = upload_file(product_image_path)
     duration = get_clip_duration(clip_path)
 
-    full_prompt = f"Use @Video1 as the reference video. Use @Image1 as the replacement product. {prompt}"
+    image_urls = []
+    prompt_parts = [f"Use @Video1 as the reference video."]
+
+    if product_image_path:
+        idx = len(image_urls) + 1
+        image_urls.append(upload_file(product_image_path))
+        prompt_parts.append(f"Use @Image{idx} as the replacement product.")
+
+    if character_image_path:
+        idx = len(image_urls) + 1
+        image_urls.append(upload_file(character_image_path))
+        prompt_parts.append(f"Use @Image{idx} as the person/character in the scene. Keep the same character consistently across all clips.")
+
+    if background_image_path:
+        idx = len(image_urls) + 1
+        image_urls.append(upload_file(background_image_path))
+        prompt_parts.append(f"Use @Image{idx} as the background environment. Keep the same background consistently across all clips.")
+
+    prompt_parts.append(prompt)
+    full_prompt = " ".join(prompt_parts)
+
+    arguments = {
+        "prompt": full_prompt,
+        "video_urls": [clip_url],
+        "resolution": "480p",
+        "aspect_ratio": "9:16",
+        "duration": duration,
+    }
+    if image_urls:
+        arguments["image_urls"] = image_urls
 
     handler = fal_client.submit(
         "bytedance/seedance-2.0/reference-to-video",
-        arguments={
-            "prompt": full_prompt,
-            "video_urls": [clip_url],
-            "image_urls": [image_url],
-            "resolution": "480p",
-            "aspect_ratio": "9:16",
-            "duration": duration,
-        },
+        arguments=arguments,
     )
 
     return handler.request_id
@@ -125,13 +147,16 @@ def get_result(request_id: str) -> str:
     return result["video"]["url"]
 
 
-def submit_all_clips(clips: list[dict], product_image_path: str) -> list[dict]:
+def submit_all_clips(clips: list[dict], product_image_path: str,
+                     character_image_path: str = "", background_image_path: str = "") -> list[dict]:
     """모든 클립을 fal.ai에 제출하고 request_id 저장"""
     for clip in clips:
         request_id = submit_video(
             clip["clip_path"],
             product_image_path,
             clip["prompt"],
+            character_image_path,
+            background_image_path,
         )
         clip["request_id"] = request_id
         clip["output_status"] = "queued"
