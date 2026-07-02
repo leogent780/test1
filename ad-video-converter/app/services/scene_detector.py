@@ -97,8 +97,9 @@ def split_clips(video_path: str, scenes: list[dict], job_id: str) -> list[dict]:
             "-ss", str(scene["start"]),
             "-to", str(scene["end"]),
             "-i", video_path,
-            "-c:v", "libx264",
-            "-c:a", "aac",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-c:a", "aac", "-b:a", "128k",
+            "-threads", "1",
             "-avoid_negative_ts", "make_zero",
             str(clip_path)
         ]
